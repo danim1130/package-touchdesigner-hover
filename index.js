@@ -17,7 +17,7 @@ let actionId = 0;
 
 let latestUpdateParameMessage = undefined;
 let messageQueTimeoutId = undefined;
-let messageQueTimeout = 80;
+let messageQueTimeout = 50;
 
 function queUpdateMessage(message) {
   latestUpdateParameMessage = message;
