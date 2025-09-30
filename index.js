@@ -15,6 +15,27 @@ let isWindowActive = false;
 
 let actionId = 0;
 
+let latestUpdateParameMessage = undefined;
+let messageQueTimeoutId = undefined;
+let messageQueTimeout = 80;
+
+function queUpdateMessage(message) {
+  latestUpdateParameMessage = message;
+  if (messageQueTimeoutId === undefined) {
+    sendNextMessage();
+  }
+}
+
+function sendNextMessage() {
+  clearTimeout(messageQueTimeoutId);
+  messageQueTimeoutId = undefined;
+  if (!latestUpdateParameMessage) return;
+
+  controller.sendMessageToEditor(latestUpdateParameMessage);
+  latestUpdateParameMessage = undefined;
+  messageQueTimeoutId = setTimeout(sendNextMessage, messageQueTimeout);
+}
+
 exports.loadPackage = async function (gridController, persistedData) {
   controller = gridController;
   let actionIconSvg = fs.readFileSync(
@@ -75,6 +96,7 @@ exports.loadPackage = async function (gridController, persistedData) {
 };
 
 exports.unloadPackage = async function () {
+  clearTimeout(messageQueTimeoutId);
   while (--actionId >= 0) {
     controller.sendMessageToEditor({
       type: "remove-action",
@@ -200,12 +222,22 @@ function handleWebsocketMessage(message) {
   let data = JSON.parse(message);
   console.log({ data });
   if (data.type === "execute-code") {
-    controller.sendMessageToEditor({
-      type: "execute-lua-script",
-      script: data.script,
-      targetDx: data.targetDx,
-      targetDy: data.targetDy,
-    });
+    //TouchDesigner specific queuing code
+    if (data.script.startsWith("update_param")) {
+      queUpdateMessage({
+        type: "execute-lua-script",
+        script: data.script,
+        targetDx: data.targetDx,
+        targetDy: data.targetDy,
+      });
+    } else {
+      controller.sendMessageToEditor({
+        type: "execute-lua-script",
+        script: data.script,
+        targetDx: data.targetDx,
+        targetDy: data.targetDy,
+      });
+    }
   }
 }
 
